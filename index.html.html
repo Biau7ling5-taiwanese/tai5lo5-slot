@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>臺羅拼音聲韻拉霸機</title>
+  <!-- Canvas Confetti 彩帶特效庫 -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #121826;
+      --machine-gold: linear-gradient(145deg, #ffd700, #c69214, #e6b800);
+      --machine-red: linear-gradient(145deg, #c0392b, #8e1b0f);
+      --reel-initial-bg: #ffe0cc; /* 粉橘色系 */
+      --reel-final-bg: #fff9c4;   /* 鵝黃色系 */
+      --initial-color: #d35400;
+      --final-color: #d68910;
+      --text-dark: #2c3e50;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', "Noto Sans TC", system-ui, -apple-system, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background: radial-gradient(circle at center, #24334a 0%, #0d131d 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      overflow-x: hidden;
+      padding: 15px;
+      transition: transform 0.1s;
+    }
+
+    /* 逗趣震動特效 */
+    body.shake-screen {
+      animation: screenShake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+    }
+
+    @keyframes screenShake {
+      10%, 90% { transform: translate3d(-3px, 0, 0); }
+      20%, 80% { transform: translate3d(5px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+      40%, 60% { transform: translate3d(6px, 0, 0); }
+    }
+
+    /* 頂部資訊列 */
+    .header-bar {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      padding: 10px 24px;
+      border-radius: 50px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .counter-badge {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #ffd700;
+      letter-spacing: 1px;
+    }
+
+    .btn-tool {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-tool:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    /* 拉霸機外觀 */
+    .machine-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .slot-machine {
+      background: var(--machine-red);
+      border: 10px solid #daa520;
+      border-radius: 40px;
+      padding: 30px 40px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), inset 0 0 25px rgba(255, 215, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      width: 480px;
+      max-width: 90vw;
+    }
+
+    /* 頂部招牌 */
+    .machine-title {
+      background: #1a1a1a;
+      color: #ffd700;
+      font-size: 1.6rem;
+      font-weight: 900;
+      padding: 12px 24px;
+      border-radius: 20px;
+      border: 3px solid #daa520;
+      text-shadow: 0 0 12px rgba(255, 215, 0, 0.8);
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .light-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ff4757;
+      animation: blink 0.7s infinite alternate;
+    }
+    .light-dot:nth-child(2) { animation-delay: 0.35s; background: #2ed573; }
+
+    @keyframes blink {
+      from { opacity: 0.3; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1.2); box-shadow: 0 0 10px currentColor; }
+    }
+
+    /* 滾輪外框與視窗 */
+    .reels-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      background: #111;
+      padding: 18px;
+      border-radius: 22px;
+      border: 5px solid #333;
+      box-shadow: inset 0 0 25px #000;
+      width: 100%;
+    }
+
+    .reel-box {
+      width: 145px;
+      height: 150px;
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 12px 18px rgba(0,0,0,0.35), inset 0 -12px 18px rgba(0,0,0,0.35);
+      border: 3px solid rgba(0,0,0,0.15);
+    }
+
+    .reel-box.initial-box { background: var(--reel-initial-bg); }
+    .reel-box.final-box { background: var(--reel-final-bg); }
+
+    .reel-label {
+      position: absolute;
+      top: 8px;
+      font-size: 0.95rem;
+      font-weight: 900;
+      color: #3e2723;
+      letter-spacing: 2px;
+      background: rgba(255, 255, 255, 0.45);
+      padding: 2px 10px;
+      border-radius: 12px;
+    }
+
+    .reel-text {
+      font-size: 3.8rem;
+      font-weight: 900;
+      transition: transform 0.08s linear;
+      margin-top: 10px;
+    }
+
+    .initial-text { color: var(--initial-color); }
+    .final-text { color: var(--final-color); }
+
+    .plus-symbol {
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: #ffd700;
+      text-shadow: 0 2px 5px rgba(0,0,0,0.6);
+    }
+
+    /* START 大按鈕 */
+    .btn-spin {
+      margin-top: 25px;
+      background: var(--machine-gold);
+      border: none;
+      color: #3e2723;
+      font-size: 1.6rem;
+      font-weight: 900;
+      padding: 14px 40px;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 8px 0 #8b6508, 0 15px 25px rgba(0,0,0,0.4);
+      transition: all 0.1s;
+      width: 80%;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .btn-spin:active {
+      transform: translateY(6px);
+      box-shadow: 0 2px 0 #8b6508, 0 5px 10px rgba(0,0,0,0.4);
+    }
+
+    .btn-spin:disabled {
+      background: #777;
+      box-shadow: none;
+      color: #bbb;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* 實體金屬拉桿 */
+    .lever-container {
+      position: absolute;
+      right: -55px;
+      top: 130px;
+      width: 55px;
+      height: 180px;
+      cursor: pointer;
+    }
+
+    .lever-base {
+      width: 25px;
+      height: 45px;
+      background: #444;
+      border-radius: 0 8px 8px 0;
+      position: absolute;
+      top: 60px;
+      left: 0;
+    }
+
+    .lever-pole {
+      width: 10px;
+      height: 90px;
+      background: linear-gradient(to right, #eee, #777);
+      position: absolute;
+      left: 15px;
+      bottom: 80px;
+      transform-origin: bottom center;
+      transition: transform 0.35s ease-in-out;
+    }
+
+    .lever-ball {
+      width: 36px;
+      height: 36px;
+      background: radial-gradient(circle at 30% 30%, #ff4d4d, #800000);
+      border-radius: 50%;
+      position: absolute;
+      top: -20px;
+      left: -13px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.6);
+    }
+
+    .lever-pulled .lever-pole {
+      transform: rotateX(150deg) scaleY(0.7);
+    }
+
+    /* 特寫彈窗 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 100;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .result-card {
+      background: #ffffff;
+      color: var(--text-dark);
+      padding: 40px 30px;
+      border-radius: 28px;
+      text-align: center;
+      border: 8px solid #ffd700;
+      box-shadow: 0 0 50px rgba(255, 215, 0, 0.6);
+      transform: scale(0.7);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      max-width: 90%;
+      width: 440px;
+      position: relative;
+    }
+
+    .modal-overlay.active .result-card {
+      transform: scale(1);
+    }
+
+    .result-title {
+      font-size: 1.2rem;
+      color: #666;
+      font-weight: 800;
+    }
+
+    .result-pinyin {
+      font-size: 6rem;
+      font-weight: 900;
+      color: #1a1a2e;
+      margin: 20px 0 35px 0;
+      letter-spacing: 3px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+
+    .btn-action {
+      border: none;
+      padding: 14px 24px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      border-radius: 15px;
+      cursor: pointer;
+      transition: transform 0.1s;
+      flex: 1;
+    }
+
+    .btn-action:active { transform: scale(0.95); }
+    .btn-pass { background: #2ed573; color: white; box-shadow: 0 4px 0 #20bf6b; }
+    .btn-retry { background: #ff4757; color: white; box-shadow: 0 4px 0 #c0392b; }
+
+    /* 逗趣挫折浮動特效 */
+    .funny-fail-text {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0) rotate(-10deg);
+      font-size: 4rem;
+      font-weight: 900;
+      color: #ff4757;
+      text-shadow: 0 0 25px #ffffff, 0 6px 12px rgba(0,0,0,0.8);
+      pointer-events: none;
+      z-index: 200;
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .funny-fail-text.show {
+      transform: translate(-50%, -50%) scale(1.15) rotate(0deg);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 頂部資訊列 -->
+  <div class="header-bar">
+    <div class="counter-badge">成功挑戰人數：<span id="count">0</span> 人</div>
+    <button class="btn-tool" onclick="resetCount()">重置計數</button>
+    <button class="btn-tool" onclick="toggleFullscreen()">全螢幕</button>
+  </div>
+
+  <!-- 拉霸機台 -->
+  <div class="machine-wrapper">
+    <div class="slot-machine">
+      <div class="machine-title">
+        <div class="light-dot"></div>
+        🎰 臺羅拼音拉霸機
+        <div class="light-dot"></div>
+      </div>
+
+      <div class="reels-container">
+        <!-- 左輪：聲母 -->
+        <div class="reel-box initial-box">
+          <span class="reel-label">聲母</span>
+          <div class="reel-text initial-text" id="reel-initial">p</div>
+        </div>
+
+        <div class="plus-symbol">+</div>
+
+        <!-- 右輪：韻母 -->
+        <div class="reel-box final-box">
+          <span class="reel-label">韻母</span>
+          <div class="reel-text final-text" id="reel-final">a</div>
+        </div>
+      </div>
+
+      <button class="btn-spin" id="spin-btn" onclick="startSpin()">START</button>
+    </div>
+
+    <!-- 右側實體拉桿 -->
+    <div class="lever-container" id="lever" onclick="startSpin()">
+      <div class="lever-base"></div>
+      <div class="lever-pole">
+        <div class="lever-ball"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 結果放大特寫彈窗 -->
+  <div class="modal-overlay" id="modal">
+    <div class="result-card">
+      <div class="result-title">請念出對應的發音：</div>
+      <div class="result-pinyin" id="modal-pinyin">pa</div>
+      <div class="modal-actions">
+        <button class="btn-action btn-retry" onclick="handleRetry()">繼續加油</button>
+        <button class="btn-action btn-pass" onclick="handleCorrect()">有夠厲害</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 逗趣加油浮動文字 -->
+  <div class="funny-fail-text" id="fail-text">😱 OH NO~<br><span style="font-size:2.8rem; color:#ffd700;">再試一下！</span></div>
+
+  <script>
+    // 擴充合法臺羅音節庫（教育部常用詞音節對齊）
+    const validSyllables = [
+      { initial: "p", final: "a", combined: "pa" },
+      { initial: "p", final: "i", combined: "pi" },
+      { initial: "p", final: "oo", combined: "poo" },
+      { initial: "ph", final: "a", combined: "pha" },
+      { initial: "ph", final: "oo", combined: "phoo" },
+      { initial: "ph", final: "i", combined: "phi" },
+      { initial: "b", final: "a", combined: "ba" },
+      { initial: "b", final: "o", combined: "bo" },
+      { initial: "b", final: "u", combined: "bu" },
+      { initial: "m", final: "a", combined: "ma" },
+      { initial: "m", final: "oo", combined: "moo" },
+      { initial: "m", final: "i", combined: "mi" },
+      { initial: "t", final: "a", combined: "ta" },
+      { initial: "t", final: "i", combined: "ti" },
+      { initial: "t", final: "o", combined: "to" },
+      { initial: "th", final: "a", combined: "tha" },
+      { initial: "th", final: "oo", combined: "thoo" },
+      { initial: "th", final: "i", combined: "thi" },
+      { initial: "n", final: "a", combined: "na" },
+      { initial: "n", final: "i", combined: "ni" },
+      { initial: "n", final: "oo", combined: "noo" },
+      { initial: "l", final: "a", combined: "la" },
+      { initial: "l", final: "i", combined: "li" },
+      { initial: "l", final: "o", combined: "lo" },
+      { initial: "k", final: "a", combined: "ka" },
+      { initial: "k", final: "e", combined: "ke" },
+      { initial: "k", final: "oo", combined: "koo" },
+      { initial: "kh", final: "a", combined: "kha" },
+      { initial: "kh", final: "i", combined: "khi" },
+      { initial: "kh", final: "oo", combined: "khoo" },
+      { initial: "h", final: "a", combined: "ha" },
+      { initial: "h", final: "i", combined: "hi" },
+      { initial: "h", final: "oo", combined: "hoo" },
+      { initial: "g", final: "a", combined: "ga" },
+      { initial: "g", final: "u", combined: "gu" },
+      { initial: "g", final: "o", combined: "go" },
+      { initial: "ts", final: "a", combined: "tsa" },
+      { initial: "ts", final: "i", combined: "tsi" },
+      { initial: "ts", final: "o", combined: "tso" },
+      { initial: "tsh", final: "a", combined: "tsha" },
+      { initial: "tsh", final: "i", combined: "tshi" },
+      { initial: "tsh", final: "u", combined: "tshu" },
+      { initial: "s", final: "a", combined: "sa" },
+      { initial: "s", final: "i", combined: "si" },
+      { initial: "s", final: "o", combined: "so" },
+      { initial: "j", final: "i", combined: "ji" },
+      { initial: "j", final: "u", combined: "ju" },
+      { initial: "ng", final: "a", combined: "nga" },
+      { initial: "ng", final: "e", combined: "nge" }
+    ];
+
+    const allInitials = ['p', 'ph', 'b', 'm', 't', 'th', 'n', 'l', 'k', 'kh', 'h', 'g', 'ng', 'ts', 'tsh', 's', 'j'];
+    const allFinals = ['a', 'i', 'u', 'e', 'oo', 'o', 'ai', 'au', 'ia', 'io', 'iu', 'ua', 'ue', 'ann', 'inn', 'ang', 'ong'];
+
+    // 抽題池（洗牌防重複機制）
+    let drawPool = [];
+    function resetDrawPool() {
+      drawPool = [...validSyllables];
+      for (let i = drawPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [drawPool[i], drawPool[j]] = [drawPool[j], drawPool[i]];
+      }
+    }
+    resetDrawPool();
+
+    let challengeCount = 0;
+    let isSpinning = false;
+    let currentTarget = null;
+
+    // Web Audio API 音效
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playBeep(freq = 440, duration = 0.08, type = 'sine') {
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    function playScreamAudio() {
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(650, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(90, audioCtx.currentTime + 0.6);
+
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.65);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.65);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    function startSpin() {
+      if (isSpinning) return;
+      isSpinning = true;
+      initAudio();
+
+      // 拉桿動畫
+      const lever = document.getElementById('lever');
+      const spinBtn = document.getElementById('spin-btn');
+      lever.classList.add('lever-pulled');
+      spinBtn.disabled = true;
+      setTimeout(() => lever.classList.remove('lever-pulled'), 350);
+
+      // 防重複抽題
+      if (drawPool.length === 0) {
+        resetDrawPool();
+      }
+      currentTarget = drawPool.pop();
+
+      const reelInitial = document.getElementById('reel-initial');
+      const reelFinal = document.getElementById('reel-final');
+
+      let timerInitial = setInterval(() => {
+        reelInitial.innerText = allInitials[Math.floor(Math.random() * allInitials.length)];
+        playBeep(320, 0.03);
+      }, 70);
+
+      let timerFinal = setInterval(() => {
+        reelFinal.innerText = allFinals[Math.floor(Math.random() * allFinals.length)];
+      }, 70);
+
+      // 左輪 1.5 秒停下
+      setTimeout(() => {
+        clearInterval(timerInitial);
+        reelInitial.innerText = currentTarget.initial;
+        playBeep(520, 0.1);
+      }, 1500);
+
+      // 右輪 2.0 秒停下
+      setTimeout(() => {
+        clearInterval(timerFinal);
+        reelFinal.innerText = currentTarget.final;
+        playBeep(650, 0.15);
+
+        setTimeout(() => {
+          showModal(currentTarget);
+          isSpinning = false;
+          spinBtn.disabled = false;
+        }, 350);
+      }, 2000);
+    }
+
+    function showModal(data) {
+      document.getElementById('modal-pinyin').innerText = data.combined;
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    function handleCorrect() {
+      confetti({
+        particleCount: 90,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+      playBeep(880, 0.25, 'sine');
+
+      challengeCount++;
+      document.getElementById('count').innerText = challengeCount;
+      closeModal();
+    }
+
+    function handleRetry() {
+      closeModal();
+      playScreamAudio();
+
+      document.body.classList.add('shake-screen');
+      setTimeout(() => document.body.classList.remove('shake-screen'), 400);
+
+      const failEl = document.getElementById('fail-text');
+      failEl.classList.add('show');
+      setTimeout(() => {
+        failEl.classList.remove('show');
+      }, 1300);
+    }
+
+    function resetCount() {
+      if (confirm('確定要將成功挑戰人數重置為 0 嗎？')) {
+        challengeCount = 0;
+        document.getElementById('count').innerText = 0;
+        resetDrawPool();
+      }
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    }
+  </script>
+</body>
+</html>
