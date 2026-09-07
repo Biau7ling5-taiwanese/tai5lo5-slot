@@ -375,6 +375,33 @@
       transform: translate(-50%, -50%) scale(1.15) rotate(0deg);
       opacity: 1;
     }
+
+    /* 頁尾資訊樣式：完美置中且與上方保持間距 */
+    .footer-info {
+      margin-top: 35px;
+      margin-bottom: 20px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 0.95rem;
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.8;
+      user-select: text;
+    }
+
+    .footer-info a {
+      color: #93c5fd;
+      text-decoration: underline;
+      font-weight: 700;
+      transition: color 0.2s;
+    }
+
+    .footer-info a:hover {
+      color: #ffffff;
+    }
   </style>
 </head>
 <body>
@@ -422,6 +449,12 @@
       </div>
     </div>
   </div>
+
+  <!-- 頁尾資訊：置中呈現並拉開間距 -->
+  <footer class="footer-info">
+    <div>Made by Biāu-lîng</div>
+    <div>使用上若有啥物建議，攏歡迎寄批 <a href="mailto:r97223148@ptgsh.ptc.edu.tw">r97223148@ptgsh.ptc.edu.tw</a> 予我！</div>
+  </footer>
 
   <!-- 結果放大特寫彈窗 -->
   <div class="modal-overlay" id="modal">
